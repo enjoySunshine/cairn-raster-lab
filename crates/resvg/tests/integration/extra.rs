@@ -80,3 +80,38 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+mod vector_effect {
+    use crate::render_extra;
+
+    #[test]
+    fn non_scaling_stroke_stretched() {
+        assert_eq!(
+            render_extra("vector-effect/non-scaling-stroke-stretched"),
+            0
+        );
+    }
+
+    #[test]
+    fn non_scaling_stroke_inherited() {
+        assert_eq!(
+            render_extra("vector-effect/non-scaling-stroke-inherited"),
+            0
+        );
+    }
+
+    #[test]
+    fn non_scaling_stroke_viewbox() {
+        assert_eq!(render_extra("vector-effect/non-scaling-stroke-viewbox"), 0);
+    }
+
+    #[test]
+    fn non_scaling_stroke_dash() {
+        assert_eq!(render_extra("vector-effect/non-scaling-stroke-dash"), 0);
+    }
+
+    #[test]
+    fn non_scaling_stroke_gradient() {
+        assert_eq!(render_extra("vector-effect/non-scaling-stroke-gradient"), 0);
+    }
+}

@@ -7,6 +7,17 @@ pub struct Context {
     pub max_bbox: tiny_skia::IntRect,
     /// The part of the target pixmap that contributes to the final image.
     pub needed_bbox: tiny_skia::IntRect,
+    /// A transform from the "host coordinate space" to the current pixmap space.
+    ///
+    /// The host coordinate space is the coordinate space of the outermost SVG
+    /// viewport, i.e. the tree's own coordinate space. It is not affected by
+    /// transforms defined inside the SVG itself, including the `viewBox` one.
+    /// It is, however, affected by the transform the caller passed to
+    /// [`resvg::render`], since that is equivalent to placing the SVG
+    /// on a bigger canvas.
+    ///
+    /// Needed only by `vector-effect="non-scaling-stroke"`.
+    pub host_to_device: tiny_skia::Transform,
 }
 
 pub fn render_nodes(
@@ -80,6 +91,7 @@ fn render_group(
     let layer_ctx = Context {
         max_bbox: ctx.max_bbox.to_rect().transform(inv_rest)?.round_out()?,
         needed_bbox: ctx.needed_bbox.to_rect().transform(inv_rest)?.round_out()?,
+        host_to_device: inv_rest.pre_concat(ctx.host_to_device),
     };
     let (layer, ibbox) = render_layer(group, &layer_ctx, inv_rest.pre_concat(transform))?;
 
@@ -155,6 +167,8 @@ fn render_layer(
     let ctx = &Context {
         max_bbox: ctx.max_bbox.translate(-ibbox.x(), -ibbox.y())?,
         needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, ibbox.width(), ibbox.height())?,
+        // The layer pixmap is shifted by `shift_ts` relative to the parent space.
+        host_to_device: shift_ts.pre_concat(ctx.host_to_device),
     };
 
     let mut sub_pixmap = tiny_skia::Pixmap::new(ibbox.width(), ibbox.height())

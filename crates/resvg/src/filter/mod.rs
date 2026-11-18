@@ -876,6 +876,7 @@ fn apply_image(
     let ctx = crate::render::Context {
         max_bbox: region_bbox,
         needed_bbox: region_bbox,
+        host_to_device: transform,
     };
 
     crate::render::render_nodes(fe.root(), &ctx, transform, &mut pixmap.as_mut());

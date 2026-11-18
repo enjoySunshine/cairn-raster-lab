@@ -44,6 +44,7 @@ fn draw_children(
                 let ctx = Context {
                     max_bbox: tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap(),
                     needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap(),
+                    host_to_device: transform,
                 };
 
                 crate::path::fill_path(path, mode, &ctx, transform, pixmap);

@@ -596,6 +596,9 @@ pub struct Stroke {
     pub(crate) width: StrokeWidth,
     pub(crate) linecap: LineCap,
     pub(crate) linejoin: LineJoin,
+    /// Whether the stroke width and dashes should be independent
+    /// of the current transform. Set by `vector-effect="non-scaling-stroke"`.
+    pub(crate) non_scaling_stroke: bool,
     // Whether the current stroke needs to be resolved relative
     // to a context element.
     pub(crate) context_element: Option<ContextElement>,
@@ -640,6 +643,15 @@ impl Stroke {
     /// Stroke linejoin.
     pub fn linejoin(&self) -> LineJoin {
         self.linejoin
+    }
+
+    /// Whether the stroke is not affected by the current transform.
+    ///
+    /// `vector-effect="non-scaling-stroke"` in SVG.
+    /// In this case the stroke width and the dash pattern are resolved
+    /// in canvas coordinates, while the geometry is still transformed.
+    pub fn is_non_scaling_stroke(&self) -> bool {
+        self.non_scaling_stroke
     }
 
     /// Converts into a `tiny_skia_path::Stroke` type.
@@ -1473,6 +1485,14 @@ impl Path {
     /// Will have the same value as `bounding_box` when path has no stroke.
     pub fn stroke_bounding_box(&self) -> Option<Rect> {
         *self.bounding_boxes().stroke_bounding_box.get_or_init(|| {
+            if self.is_non_scaling_stroke() {
+                // The stroke is resolved in canvas coordinates,
+                // so its bounding box has to be calculated there as well.
+                return Path::calculate_abs_stroke_bbox(self.stroke.as_ref()?, &self.abs_data()?)
+                    .and_then(|bbox| bbox.transform(self.abs_transform.invert()?))
+                    .or_else(|| self.bounding_box());
+            }
+
             Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.data)
                 .or_else(|| self.bounding_box())
         })
@@ -1488,13 +1508,19 @@ impl Path {
             .get_or_init(|| {
                 if self.stroke.is_none() {
                     self.abs_bounding_box()
-                } else if self.abs_transform.has_skew() {
-                    Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.abs_data()?)
+                } else if self.is_non_scaling_stroke() || self.abs_transform.has_skew() {
+                    Path::calculate_abs_stroke_bbox(self.stroke.as_ref()?, &self.abs_data()?)
                         .or_else(|| self.abs_bounding_box())
                 } else {
                     self.stroke_bounding_box()?.transform(self.abs_transform)
                 }
             })
+    }
+
+    fn is_non_scaling_stroke(&self) -> bool {
+        self.stroke
+            .as_ref()
+            .is_some_and(|stroke| stroke.is_non_scaling_stroke())
     }
 
     fn bounding_boxes(&self) -> &PathBoundingBoxes {
@@ -1514,6 +1540,18 @@ impl Path {
 
         // Expensive, but there is not much we can do about it.
         if let Some(stroked_path) = path.stroke(&stroke, 1.0) {
+            return stroked_path.compute_tight_bounds();
+        }
+
+        None
+    }
+
+    fn calculate_abs_stroke_bbox(stroke: &Stroke, abs_path: &tiny_skia_path::Path) -> Option<Rect> {
+        let mut stroke = stroke.to_tiny_skia();
+        // According to the spec, dash should not be accounted during bbox calculation.
+        stroke.dash = None;
+
+        if let Some(stroked_path) = abs_path.stroke(&stroke, 1.0) {
             return stroked_path.compute_tight_bounds();
         }
 

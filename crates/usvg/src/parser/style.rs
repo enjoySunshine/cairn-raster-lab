@@ -130,6 +130,9 @@ pub(crate) fn resolve_stroke(
         width,
         linecap: node.find_attribute(AId::StrokeLinecap).unwrap_or_default(),
         linejoin: node.find_attribute(AId::StrokeLinejoin).unwrap_or_default(),
+        // `vector-effect` is not inherited, so we must check only the element itself.
+        // On a `g` element it has no effect.
+        non_scaling_stroke: node.attribute::<&str>(AId::VectorEffect) == Some("non-scaling-stroke"),
         context_element,
     };
 

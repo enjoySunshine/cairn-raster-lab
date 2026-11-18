@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg">
+    <title>Non-scaling stroke under a stretched transform</title>
+
+    <g id="g1" transform="translate(30 20) scale(3 1)">
+        <rect id="rect1" x="10" y="10" width="30" height="40" fill="#e23b2f" stroke="#142033"
+              stroke-width="8" vector-effect="non-scaling-stroke"/>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="218" height="138" fill="none" stroke="black"/>
+</svg>

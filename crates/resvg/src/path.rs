@@ -82,6 +82,8 @@ fn stroke_path(
     pixmap: &mut tiny_skia::PixmapMut,
 ) -> Option<()> {
     let stroke = path.stroke()?;
+    let rendering_mode = path.rendering_mode();
+
     let pattern_pixmap;
     let mut paint = tiny_skia::Paint::default();
     match stroke.paint() {
@@ -107,10 +109,49 @@ fn stroke_path(
             );
         }
     }
-    paint.anti_alias = path.rendering_mode().use_shape_antialiasing();
+    paint.anti_alias = rendering_mode.use_shape_antialiasing();
     paint.blend_mode = blend_mode;
 
-    pixmap.stroke_path(path.data(), &paint, &stroke.to_tiny_skia(), transform, None);
+    if stroke.is_non_scaling_stroke() {
+        stroke_path_non_scaling(path, &paint, stroke, ctx, transform, pixmap)?;
+    } else {
+        pixmap.stroke_path(path.data(), &paint, &stroke.to_tiny_skia(), transform, None);
+    }
+
+    Some(())
+}
+
+/// Strokes a path with `vector-effect="non-scaling-stroke"`.
+///
+/// Such a stroke is resolved in the "host coordinate space", i.e. the
+/// coordinate space of the outermost SVG viewport. It ignores the `viewBox`
+/// transform and all the element transforms, but it still follows the
+/// transform passed to the renderer, since that is equivalent to zooming.
+fn stroke_path_non_scaling(
+    path: &usvg::Path,
+    paint: &tiny_skia::Paint,
+    stroke: &usvg::Stroke,
+    ctx: &Context,
+    transform: tiny_skia::Transform,
+    pixmap: &mut tiny_skia::PixmapMut,
+) -> Option<()> {
+    let host_ts = ctx.host_to_device;
+
+    // Map the path from its own user space into the host space, stroke it
+    // there with the original width and dashes, and let `stroke_path` map
+    // the result into the device space. Stroking in the host space and
+    // rendering with the host transform are exactly equivalent to stroking
+    // in the device space, but this way all of tiny-skia's stroking details
+    // (hairlines, dashes, joins and caps) behave as usual.
+    let user_to_host = host_ts.invert()?.pre_concat(transform);
+    let host_path = path.data().clone().transform(user_to_host)?;
+
+    // The paint is defined in the path's user space, so it has to be mapped
+    // into the host space along with the path.
+    let mut paint = paint.clone();
+    paint.shader.transform(user_to_host);
+
+    pixmap.stroke_path(&host_path, &paint, &stroke.to_tiny_skia(), host_ts, None);
 
     Some(())
 }
@@ -279,6 +320,9 @@ fn render_pattern_pixmap(
     let ctx = Context {
         max_bbox: ctx.max_bbox,
         needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height())?,
+        // A pattern establishes its own viewport, so the pattern content
+        // is its own host space. It is mapped to the pattern pixmap by `sx`/`sy`.
+        host_to_device: tiny_skia::Transform::from_scale(sx, sy),
     };
     crate::render::render_nodes(pattern.root(), &ctx, transform, &mut pixmap.as_mut());
 

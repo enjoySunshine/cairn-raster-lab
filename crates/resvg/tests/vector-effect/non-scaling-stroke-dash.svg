@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg">
+    <title>Non-scaling dashed stroke</title>
+
+    <g id="g1" transform="scale(3 1)">
+        <line id="line1" x1="10" y1="20" x2="60" y2="20" stroke="#142033" stroke-width="4"
+              stroke-dasharray="8 6" vector-effect="non-scaling-stroke"/>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="218" height="38" fill="none" stroke="black"/>
+</svg>

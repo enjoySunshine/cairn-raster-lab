@@ -41,6 +41,7 @@ pub fn render(
     let ctx = render::Context {
         max_bbox,
         needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height()).unwrap(),
+        host_to_device: transform,
     };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
 }
@@ -69,6 +70,9 @@ pub fn render_node(
     let ctx = render::Context {
         max_bbox,
         needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height()).unwrap(),
+        // A `render_node` call puts the node at the pixmap origin,
+        // so the host space is translated accordingly.
+        host_to_device: transform,
     };
     render::render_node(node, &ctx, transform, pixmap);
 
